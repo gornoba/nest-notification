@@ -1,0 +1,71 @@
+<html lang='en'>
+  <head>
+    <meta charset='UTF-8' />
+    <title>Notification App</title>
+    <script src='https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js'></script>
+  </head>
+  <body>
+    <h1>Notification App</h1>
+
+    <form id='notificationForm'>
+      <input
+        type='text'
+        id='message'
+        placeholder='Enter your message'
+        required
+      />
+      <button type='submit'>Send Notification</button>
+    </form>
+
+    <ul id='notifications'></ul>
+
+    <script>
+      const eventSource = new EventSource('http://localhost:3001/sse-notify');
+      eventSource.onmessage = function(event) { 
+        const data = JSON.parse(event.data); 
+
+        for (const item of data) {
+          const notifyEl = document.getElementById(`${item.id}`);
+
+          if (!notifyEl) {
+              const newElement = document.createElement('li');
+              newElement.id = item.id;
+              newElement.textContent = item.message;
+
+              // 확인 버튼 생성
+              const confirmButton = document.createElement('button');
+              confirmButton.textContent = '확인';
+              confirmButton.onclick = function() {
+                // 버튼 클릭 시 실행할 코드 작성
+                axios.post(`http://localhost:3001/ack/1/${item.id}`)
+                .then((res) => {
+                  newElement.remove();
+                })
+              };
+
+              // li 엘리먼트에 버튼 추가
+              newElement.appendChild(confirmButton);
+
+              // notifications 엘리먼트에 li 추가
+              document.getElementById('notifications').appendChild(newElement);
+          }
+        }
+      };
+      document
+      .getElementById('notificationForm')
+      .addEventListener('submit', (event) => {
+        event.preventDefault();
+
+        const message =document.getElementById('message').value;
+
+        axios.post('http://localhost:3000/send-notify', { message: message })
+        .then(response => {
+          console.log('Notification sent', response.data); 
+        })
+        .catch(error => {
+          console.error('Error sending notification', error); 
+        });
+      });
+    </script>
+  </body>
+</html>

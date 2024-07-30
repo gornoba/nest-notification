@@ -1,0 +1,54 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: ./apps/api/Dockerfile
+      target: development
+    command: npm run start:dev api
+    env_file:
+      - ./apps/api/.env
+    depends_on:
+      - rabbitmq
+      - database
+    volumes:
+      - ./apps/api:/usr/src/app/apps/api
+      - ./libs:/usr/src/app/libs
+      - /usr/src/app/node_modules
+      - ./views:/usr/src/app/views
+    ports:
+      - '3000:3000'
+
+  notify:
+    build:
+      context: .
+      dockerfile: ./apps/notify/Dockerfile
+      target: development
+    command: npm run start:dev notify
+    env_file:
+      - ./apps/notify/.env
+    depends_on:
+      - rabbitmq
+      - database
+    volumes:
+      - ./apps/notify:/usr/src/app/apps/notify
+      - ./libs:/usr/src/app/libs
+      - /usr/src/app/node_modules
+      - ./views:/usr/src/app/views
+    ports:
+      - '3001:3001'
+
+  rabbitmq:
+    image: rabbitmq
+    ports:
+      - '5672:5672'
+    volumes:
+      - ./rabbitmq_data:/var/lib/rabbitmq
+
+  database:
+    image: postgres:alpine
+    environment:
+      POSTGRES_PASSWORD: abcde
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
