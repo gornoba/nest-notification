@@ -3,7 +3,6 @@ import { NotifyService } from './notify.service';
 import { RmqService } from '../../../libs/common/src/rmq/rmq.service';
 import { Ctx, EventPattern, Payload, RmqContext } from '@nestjs/microservices';
 import { interval, map, startWith, switchMap } from 'rxjs';
-import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Controller()
 export class NotifyController {
@@ -48,26 +47,13 @@ export class NotifyController {
 
   @EventPattern('notify')
   async notify(@Payload() data: any, @Ctx() context: RmqContext) {
-    // emit된 데이터가 check인지 확인
-    if (data.type === 'check') {
-      // 바로 ack
+    setTimeout(() => {
+      // 10분이 지나면 ack
       this.rmqService.ack(context);
+      this.notifyService.nextNotification(data, true);
+    }, 1000 * 60 * 10);
 
-      // 10분이 지난 데이터인지 확인
-      const timeIs = this.notifyService.timeDiff(data.created_at);
-
-      if (timeIs) {
-        // 10분이 지났다면 ack
-        this.rmqService.ack(context);
-      }
-    } else {
-      // notify 데이터라면 notifyService에 데이터 전달
-      this.notifyService.nextNotification(data);
-    }
-  }
-
-  @Cron(CronExpression.EVERY_5_SECONDS)
-  async cron() {
-    this.notifyService.check();
+    // notify 데이터라면 notifyService에 데이터 전달
+    this.notifyService.nextNotification(data, false);
   }
 }

@@ -7,9 +7,9 @@ import * as Joi from 'joi';
 import { DatabaseModule } from '@app/common/databse/database.module';
 import { AckEntity } from './entities/ack.entity';
 import { NotifyEntity } from './entities/notify.entity';
-import { ScheduleModule } from '@nestjs/schedule';
 import { NOTIFY } from './notify.constant';
 import { NotifyRepository } from './notify.repository';
+import { SocketModule } from './socket/socket.module';
 
 @Module({
   imports: [
@@ -25,9 +25,10 @@ import { NotifyRepository } from './notify.repository';
     }),
     RmqModule.register({ name: NOTIFY }),
     DatabaseModule.forRootAsync([AckEntity, NotifyEntity]),
-    ScheduleModule.forRoot(),
+    SocketModule,
   ],
   controllers: [NotifyController],
   providers: [NotifyService, NotifyRepository],
+  exports: [NotifyService],
 })
 export class NotifyModule {}

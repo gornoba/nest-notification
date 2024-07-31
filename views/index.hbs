@@ -2,6 +2,7 @@
   <head>
     <meta charset='UTF-8' />
     <title>Notification App</title>
+    <script src="https://cdn.socket.io/4.3.2/socket.io.min.js" integrity="sha384-KAZ4DtjNhLChOB/hxXuKqhMLYvx3b5MlT55xPEiNmREKRzeEm+RVPlTnAn0ajQNs" crossorigin="anonymous"></script>
     <script src='https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js'></script>
   </head>
   <body>
@@ -20,11 +21,16 @@
     <ul id='notifications'></ul>
 
     <script>
-      const eventSource = new EventSource('http://localhost:3001/sse-notify');
-      eventSource.onmessage = function(event) { 
-        const data = JSON.parse(event.data); 
+      const socket = io('http://localhost:3001', {
+        transports: ['websocket'],
+      });
 
-        for (const item of data) {
+      socket.on('connect', function() {
+        console.log('Connected to server');
+      });
+
+      socket.emit('notify', { init: true }, (data) => {
+        for (const item of data?.data) {
           const notifyEl = document.getElementById(`${item.id}`);
 
           if (!notifyEl) {
@@ -50,17 +56,55 @@
               document.getElementById('notifications').appendChild(newElement);
           }
         }
-      };
+      });
+
+      socket.on('notify', (data) => {
+        const notifyEl = document.getElementById(`${data.id}`);
+
+        if (!notifyEl) {
+          const newElement = document.createElement('li');
+          newElement.id = data.id;
+          newElement.textContent = data.message;
+
+          // 확인 버튼 생성
+          const confirmButton = document.createElement('button');
+          confirmButton.textContent = '확인';
+          confirmButton.onclick = async () => {
+            // 버튼 클릭 시 실행할 코드 작성
+            const result = await axios.post(`http://localhost:3001/ack/1/${data.id}`)
+            
+            if (result) {
+              newElement.remove();
+              socket.emit('delete', { id: data.id });
+            }
+          };
+
+          // li 엘리먼트에 버튼 추가
+          newElement.appendChild(confirmButton);
+
+          // notifications 엘리먼트에 li 추가
+          document.getElementById('notifications').appendChild(newElement);
+        }
+      });
+
+      socket.on('delete', (data) => {
+        const notifyEl = document.getElementById(`${data.id}`);
+        notifyEl.remove();
+      });
+
+
+
       document
       .getElementById('notificationForm')
       .addEventListener('submit', (event) => {
         event.preventDefault();
 
-        const message =document.getElementById('message').value;
+        const message = document.getElementById('message').value;
 
         axios.post('http://localhost:3000/send-notify', { message: message })
         .then(response => {
-          console.log('Notification sent', response.data); 
+          const resData = response.data;
+          socket.emit('submit', resData);
         })
         .catch(error => {
           console.error('Error sending notification', error); 

@@ -1,23 +1,28 @@
-import { Inject, Injectable, MessageEvent } from '@nestjs/common';
-import { ClientProxy } from '@nestjs/microservices';
+import { Injectable, MessageEvent } from '@nestjs/common';
 import { BehaviorSubject } from 'rxjs';
-import { NOTIFY } from './notify.constant';
 import { NotifyRepository } from './notify.repository';
 
 @Injectable()
 export class NotifyService {
   private notificationSubject = new BehaviorSubject<MessageEvent[]>([]);
 
-  constructor(
-    @Inject(NOTIFY) private readonly notifyClient: ClientProxy,
-    private readonly notifyRepository: NotifyRepository,
-  ) {}
+  constructor(private readonly notifyRepository: NotifyRepository) {}
 
   // rxjs subject에 notify 데이터 추가
-  nextNotification(data: any) {
+  nextNotification(data: any, del: boolean) {
     const currentNotifications = this.notificationSubject.getValue();
-    const updatedNotifications = [...currentNotifications, { ...data }];
-    this.notificationSubject.next(updatedNotifications);
+
+    const difference = currentNotifications.filter((a) => a.id !== data.id);
+
+    let nextArr = [];
+
+    if (del) {
+      nextArr = [...difference];
+    } else {
+      nextArr = [...difference, { ...data }];
+    }
+
+    this.notificationSubject.next(nextArr);
   }
 
   // rxjs subject observable 반환
@@ -35,9 +40,12 @@ export class NotifyService {
     return this.notifyRepository.getAll();
   }
 
-  // scheduler로 10초마다 ack check
-  check() {
-    this.notifyClient.emit('notify', { type: 'check' });
+  delete(id: number) {
+    const currentNotifications = this.notificationSubject.getValue();
+    const updatedNotifications = currentNotifications.filter(
+      (a) => a.data['id'] !== id,
+    );
+    this.notificationSubject.next(updatedNotifications);
   }
 
   // 10분이 지났는지 확인
@@ -46,8 +54,8 @@ export class NotifyService {
     const now: Date = new Date();
 
     const differenceInMilliseconds = now.getTime() - createdAt.getTime();
-    const differenceInMinutes = differenceInMilliseconds / (1000 * 60);
+    const differenceInMinutes = differenceInMilliseconds / 1000;
 
-    return differenceInMinutes > 10;
+    return differenceInMinutes > 1;
   }
 }

@@ -19,6 +19,6 @@ export class ApiService {
       ...result,
     });
 
-    return 'Notify sent';
+    return result;
   }
 }
